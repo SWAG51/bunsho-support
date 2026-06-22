@@ -137,20 +137,36 @@ async function run(isRegen) {
   });
   lastPayload = { apiKey: cfg.apiKey, model, system, user, temperature };
 
-  $('genBtn').disabled = true; $('regenBtn').disabled = true;
+  setBusy(true, isRegen);
   setStatus($('status'), (isRegen ? '別案を作成中' : '作成中') + `…（${model}）`, 'busy');
+  // 出力欄に「考え中」を表示（動く合図）
+  $('outWrap').classList.remove('hidden');
+  $('output').innerHTML = '<span class="thinking">文章を考えています</span>';
   try {
     const text = await window.api.generate(lastPayload);
-    $('outWrap').classList.remove('hidden');
     $('output').textContent = text;
     setStatus($('status'), '完成しました', 'ok');
   } catch (e) {
     let msg = e.message || String(e);
     if (/API_KEY|403|400/.test(msg)) msg += '（APIキーを再確認してください）';
     if (/429/.test(msg)) msg = '無料枠の上限に達した可能性。少し待って再度お試しください。';
+    $('output').textContent = '';
     setStatus($('status'), '失敗: ' + msg, 'err');
   } finally {
-    $('genBtn').disabled = false; $('regenBtn').disabled = false;
+    setBusy(false);
+  }
+}
+
+// 生成中の見た目（スピナー＋ヘッダー脈打ち）の切り替え
+function setBusy(on, isRegen) {
+  const gen = $('genBtn');
+  document.body.classList.toggle('working', on);
+  gen.disabled = on; $('regenBtn').disabled = on; $('clearBtn').disabled = on;
+  if (on) {
+    gen.dataset.label = gen.dataset.label || gen.textContent;
+    gen.innerHTML = '<span class="spinner"></span>' + (isRegen ? '作り直し中…' : '作成中…');
+  } else if (gen.dataset.label) {
+    gen.textContent = gen.dataset.label;
   }
 }
 
@@ -162,6 +178,19 @@ $('copyBtn').onclick = async () => {
   } catch {
     setStatus($('status'), 'コピーに失敗しました', 'err');
   }
+};
+
+// ---------- クリア（すべて白紙に戻す） ----------
+$('clearBtn').onclick = () => {
+  $('incoming').value = '';
+  $('points').value = '';
+  $('output').textContent = '';
+  $('outWrap').classList.add('hidden');
+  $('tone').value = 'polite';
+  $('length').value = 'normal';
+  lastPayload = null;
+  setStatus($('status'), '白紙に戻しました', 'ok');
+  $('points').focus();
 };
 
 // ---------- プロンプト構築（生成のクセを決める核） ----------
