@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文章生成サポート</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===== タイトルバー（ドラッグで移動） ===== -->
+  <header class="titlebar">
+    <div class="title">
+      <span class="logo">文</span>
+      <span>文書生成サポート</span>
+    </div>
+    <div class="winbtns">
+      <button id="pinBtn" title="常に最前面の切替">📌</button>
+      <button id="setBtn" title="設定">⚙</button>
+      <button id="minBtn" title="最小化">—</button>
+      <button id="hideBtn" title="しまう（トレイに格納）">×</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== 設定パネル（初回・APIキー未設定時に開く） ===== -->
+    <section id="settings" class="panel hidden">
+      <h2>設定</h2>
+      <label>Gemini APIキー</label>
+      <input id="apiKey" type="password" placeholder="AIza... を貼り付け" autocomplete="off" />
+      <button id="getKeyLink" class="linklike">▶ 無料APIキーの取得ページを開く（Google AI Studio）</button>
+      <label class="mt">使用モデル</label>
+      <select id="modelSelect"><option value="">自動（おすすめのflashを選択）</option></select>
+      <div class="row">
+        <button id="testBtn" class="ghost">接続テスト</button>
+        <button id="saveSettings" class="primary">保存して閉じる</button>
+      </div>
+      <p id="setStatus" class="status"></p>
+    </section>
+
+    <!-- ===== 生成パネル ===== -->
+    <section id="composer" class="panel">
+      <!-- 用途タブ -->
+      <div class="tabs" id="modeTabs">
+        <button class="tab active" data-mode="line">LINE返信</button>
+        <button class="tab" data-mode="customer">お客様対応</button>
+        <button class="tab" data-mode="thanks">お礼・お詫び</button>
+        <button class="tab" data-mode="remind">催促・確認</button>
+        <button class="tab" data-mode="free">フリー</button>
+      </div>
+
+      <!-- 相手の文（任意） -->
+      <div id="incomingWrap">
+        <label>相手から届いた文（あれば貼り付け）<span class="opt">任意</span></label>
+        <textarea id="incoming" rows="3" placeholder="例）先日の見積もりの件、もう少し安くなりませんか？"></textarea>
+      </div>
+
+      <!-- 伝えたい要点 -->
+      <label>伝えたい要点・メモ<span class="req">必須</span></label>
+      <textarea id="points" rows="4" placeholder="例）5%なら値引き可能。今週中に返事ほしい。感じよく。"></textarea>
+
+      <!-- 口調・長さ -->
+      <div class="opts">
+        <div>
+          <label>口調</label>
+          <select id="tone">
+            <option value="polite" selected>ていねい（自然）</option>
+            <option value="friendly">やわらかめ・親しみ</option>
+            <option value="formal">かしこまり</option>
+          </select>
+        </div>
+        <div>
+          <label>長さ</label>
+          <select id="length">
+            <option value="short">短め</option>
+            <option value="normal" selected>ふつう</option>
+            <option value="long">しっかり</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="genBtn" class="primary big">文章を作る</button>
+
+      <!-- 出力 -->
+      <div id="outWrap" class="hidden">
+        <div class="outhead">
+          <span>生成結果</span>
+          <div>
+            <button id="copyBtn" class="ghost sm">コピー</button>
+            <button id="regenBtn" class="ghost sm">作り直す</button>
+          </div>
+        </div>
+        <div id="output" class="output"></div>
+      </div>
+
+      <p id="status" class="status"></p>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
