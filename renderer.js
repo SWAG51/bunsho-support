@@ -89,6 +89,19 @@ function pickModel(models) {
   return flash || models[0];
 }
 
+// 混雑時に切り替える予備モデル（主モデル以外のflash系を数個）
+function pickFallbacks(list, primary) {
+  const pref = [
+    'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.5-flash',
+    'gemini-2.5-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash',
+  ];
+  const out = [];
+  for (const p of pref) {
+    if (p !== primary && Array.isArray(list) && list.includes(p) && !out.includes(p)) out.push(p);
+  }
+  return out.slice(0, 3);
+}
+
 // ---------- 用途タブ ----------
 $('modeTabs').querySelectorAll('.tab').forEach((btn) => {
   btn.onclick = () => {
@@ -135,7 +148,8 @@ async function run(isRegen) {
     length: $('length').value,
     regen: isRegen,
   });
-  lastPayload = { apiKey: cfg.apiKey, model, system, user, temperature };
+  const fallbacks = pickFallbacks(cfg.modelList, model);
+  lastPayload = { apiKey: cfg.apiKey, model, models: fallbacks, system, user, temperature };
 
   setBusy(true, isRegen);
   setStatus($('status'), (isRegen ? '別案を作成中' : '作成中') + `…（${model}）`, 'busy');
@@ -148,8 +162,11 @@ async function run(isRegen) {
     setStatus($('status'), '完成しました', 'ok');
   } catch (e) {
     let msg = e.message || String(e);
-    if (/API_KEY|403|400/.test(msg)) msg += '（APIキーを再確認してください）';
-    if (/429/.test(msg)) msg = '無料枠の上限に達した可能性。少し待って再度お試しください。';
+    if (/503|high demand|overloaded|UNAVAILABLE/i.test(msg))
+      msg = 'Gemini側が一時的に混雑しています（自動で数回・別モデルでも試しました）。少し待って「作り直す」を押してください。';
+    else if (/429|RESOURCE_EXHAUSTED/i.test(msg))
+      msg = '無料枠の上限に達した可能性。少し時間をおいて再度お試しください。';
+    else if (/API_KEY|403|400/.test(msg)) msg += '（APIキーを再確認してください）';
     $('output').textContent = '';
     setStatus($('status'), '失敗: ' + msg, 'err');
   } finally {

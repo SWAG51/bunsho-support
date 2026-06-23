@@ -194,8 +194,11 @@ ipcMain.handle('gemini:listModels', async (_e, apiKey) => {
     .map((m) => m.name.replace(/^models\//, ''));
 });
 
-// ===== IPC: Gemini 生成 =====
-ipcMain.handle('gemini:generate', async (_e, { apiKey, model, system, user, temperature }) => {
+// ===== IPC: Gemini 生成（自動リトライ＋混雑時は別モデルへフォールバック） =====
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 1回だけ呼ぶ。失敗時は status を持つ Error を投げる
+async function callGeminiOnce(apiKey, model, system, user, temperature) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
   )}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -207,9 +210,7 @@ ipcMain.handle('gemini:generate', async (_e, { apiKey, model, system, user, temp
       maxOutputTokens: 2048,
     },
   };
-  if (system) {
-    body.systemInstruction = { parts: [{ text: system }] };
-  }
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
 
   const res = await fetch(url, {
     method: 'POST',
@@ -219,7 +220,9 @@ ipcMain.handle('gemini:generate', async (_e, { apiKey, model, system, user, temp
 
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`生成に失敗 (${res.status}): ${t.slice(0, 400)}`);
+    const err = new Error(`生成に失敗 (${res.status}): ${t.slice(0, 300)}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   const cand = data.candidates && data.candidates[0];
@@ -227,8 +230,39 @@ ipcMain.handle('gemini:generate', async (_e, { apiKey, model, system, user, temp
     cand && cand.content && cand.content.parts
       ? cand.content.parts.map((p) => p.text || '').join('')
       : '';
-  if (!text) {
-    throw new Error('返答が空でした。少し言い回しを変えてもう一度お試しください。');
-  }
+  if (!text) throw new Error('返答が空でした。少し言い回しを変えてもう一度お試しください。');
   return text.trim();
+}
+
+// 一時的エラー（混雑・レート・サーバー）かどうか
+function isTransient(status) {
+  return status === 503 || status === 429 || status === 500 || status === 502 || status === 504;
+}
+
+ipcMain.handle('gemini:generate', async (_e, { apiKey, model, models, system, user, temperature }) => {
+  // 試すモデルの順番（主モデル→予備）。重複は除く
+  const chain = [model, ...(Array.isArray(models) ? models : [])].filter(
+    (m, i, a) => m && a.indexOf(m) === i
+  );
+
+  let lastErr = null;
+  for (let mi = 0; mi < chain.length; mi++) {
+    const m = chain[mi];
+    // 各モデルで最大3回（混雑時に間隔を空けて再試行）
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await callGeminiOnce(apiKey, m, system, user, temperature);
+      } catch (e) {
+        lastErr = e;
+        if (isTransient(e.status) && attempt < 2) {
+          await sleep(1200 * (attempt + 1)); // 1.2s, 2.4s
+          continue;
+        }
+        break; // この一時エラー以外、または再試行打ち切り → 次のモデルへ
+      }
+    }
+    // 一時的エラーなら次の予備モデルへ。それ以外（キー不正など）は即終了
+    if (!isTransient(lastErr && lastErr.status)) break;
+  }
+  throw lastErr || new Error('生成に失敗しました');
 });
