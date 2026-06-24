@@ -35,10 +35,20 @@ jobs:
         run: npm ci || npm install
 
       - name: インストーラをビルド
-        # CSC_IDENTITY_AUTO_DISCOVERY は設定しない。
-        # → 証明書が無くても electron-builder が mac アプリを
-        #   アドホック署名し、Apple Silicon の「壊れている」ブロックを回避する。
+        # 署名は build/afterPack.js（@electron/osx-sign のアドホック署名）で行う。
         run: ${{ matrix.cmd }}
+
+      - name: 署名を検証（macのみ）
+        if: matrix.name == 'mac'
+        run: |
+          APP=$(find release/mac-arm64 -maxdepth 1 -name "*.app" | head -1)
+          echo "APP=$APP"
+          echo "=== codesign --verify（有効なら無出力でOK）==="
+          codesign --verify --deep --strict --verbose=2 "$APP"; echo "verify exit=$?"
+          echo "=== 付与された entitlements ==="
+          codesign -d --entitlements :- "$APP" 2>/dev/null | tr -d '\0' | grep -iE "library-validation|allow-jit|unsigned-exec" || true
+          echo "=== Team ID（ad-hocなら空）==="
+          codesign -dvv "$APP" 2>&1 | grep -iE "TeamIdentifier|Signature|flags" || true
 
       - name: 成果物をアップロード（Actionsの保管庫）
         uses: actions/upload-artifact@v4

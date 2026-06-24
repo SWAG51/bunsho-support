@@ -1,6 +1,6 @@
 {
   "name": "bunsho-support",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "デスクトップ常駐型 ビジネス文書生成サポート（Gemini）",
   "main": "main.js",
   "scripts": {
