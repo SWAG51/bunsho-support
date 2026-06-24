@@ -1,6 +1,6 @@
 {
   "name": "bunsho-support",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "デスクトップ常駐型 ビジネス文書生成サポート（Gemini）",
   "main": "main.js",
   "scripts": {
@@ -51,15 +51,11 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] },
         { "target": "zip", "arch": ["x64", "arm64"] }
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
       "identity": null
-    },
-    "dmg": {
-      "title": "文章生成サポート ${version}"
     }
   }
 }
