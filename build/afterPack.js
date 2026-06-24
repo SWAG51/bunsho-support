@@ -17,17 +17,20 @@ exports.default = async function (context) {
     context.appOutDir,
     `${context.packager.appInfo.productFilename}.app`
   );
+  // @electron/osx-sign 1.x では entitlements は optionsForFile コールバック経由でのみ有効。
+  // 全部品に同じ権限（ライブラリ検証免除＋V8用JIT）を適用する。
+  const entitlements = [
+    'com.apple.security.cs.allow-jit',
+    'com.apple.security.cs.allow-unsigned-executable-memory',
+    'com.apple.security.cs.disable-library-validation',
+    'com.apple.security.cs.allow-dyld-environment-variables',
+  ];
   await signAsync({
     app: appPath,
     identity: '-',             // アドホック署名
     identityValidation: false, // キーチェーン照合をしない
-    // hardenedRuntime は既定(true)のまま → 下の cs.* 権限を有効化
-    entitlements: [
-      'com.apple.security.cs.allow-jit',
-      'com.apple.security.cs.allow-unsigned-executable-memory',
-      'com.apple.security.cs.disable-library-validation',
-      'com.apple.security.cs.allow-dyld-environment-variables',
-    ],
+    preAutoEntitlements: false, // 指定した entitlements をそのまま使う
+    optionsForFile: () => ({ entitlements, hardenedRuntime: true }),
     type: 'distribution',
     platform: 'darwin',
   });
