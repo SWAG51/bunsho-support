@@ -1,6 +1,6 @@
 {
   "name": "bunsho-support",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "デスクトップ常駐型 ビジネス文書生成サポート（Gemini）",
   "main": "main.js",
   "scripts": {
@@ -18,7 +18,6 @@
   "build": {
     "appId": "jp.dubdesign.bunshosupport",
     "productName": "文章生成サポート",
-    "afterPack": "./build/afterPack.js",
     "artifactName": "BunshoSupport-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release",
@@ -56,7 +55,9 @@
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
-      "identity": null
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "dmg": {
       "title": "文章生成サポート ${version}"
